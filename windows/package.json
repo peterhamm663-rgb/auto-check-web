@@ -1,0 +1,48 @@
+{
+  "name": "auto-check-windows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auto Check Windows desktop application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "py.autocheck.desktop",
+    "productName": "Auto Check",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

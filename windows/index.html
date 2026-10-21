@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Auto Check</title>
+<meta name="theme-color" content="#142a48">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Auto Check">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{font-family:system-ui,Arial;background:#f3f5f9;color:#172238}*{box-sizing:border-box}body{margin:0}header{background:#142a48;color:white;padding:18px 16px;position:sticky;top:0;z-index:2}h1{margin:0;font-size:22px}header small{color:#bed0e9}nav{display:flex;gap:6px;overflow:auto;padding:10px;background:white;position:sticky;top:70px;z-index:2}nav button{white-space:nowrap;background:#e9eff8;color:#172238;border:0;padding:11px;border-radius:10px;font-weight:650}nav button.active{background:#1465cf;color:white}main{max-width:900px;margin:auto;padding:14px 14px 70px}.card{background:white;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 9px #182b4612}h2{font-size:20px;margin:0 0 12px}h3{margin:6px 0 12px}label{display:block;font-size:13px;font-weight:700;margin:10px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;background:white}textarea{min-height:70px}button{cursor:pointer;font:inherit}.primary{background:#1465cf;color:white;border:0;border-radius:9px;padding:12px 15px;margin-top:12px;font-weight:700}.secondary{background:#e8eff8;border:0;border-radius:9px;padding:10px 12px;margin:6px 4px 0 0}.danger{color:#b02020}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#edf4ff;padding:14px;border-radius:12px}.stat strong{display:block;font-size:20px}.item{border-top:1px solid #e5eaf1;padding:12px 0;overflow-wrap:anywhere}.muted{color:#5e6b7c;font-size:13px}.tag{display:inline-block;background:#fff0d9;padding:4px 8px;border-radius:9px;font-size:12px}.hide{display:none}#toast{position:fixed;bottom:20px;left:10%;width:80%;background:#142a48;color:white;border-radius:12px;padding:14px;display:none;z-index:5}@media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}.fields{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}}@media print{header,nav,main,#toast,.no-print,button{display:none!important}#printArea{display:block!important;position:static!important;background:white!important;padding:0!important}#printDoc{border:0!important;box-shadow:none!important;margin:0!important;max-width:none!important}body{background:white!important}}
+#authScreen{position:fixed;inset:0;background:#f3f5f9;z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}#authCard{max-width:430px;width:100%;background:white;padding:22px;border-radius:16px;box-shadow:0 4px 25px #142a4822}#authCard input{margin:8px 0 12px}#authCard button{width:100%}#authMessage{color:#a52020}body.locked header,body.locked nav,body.locked main{display:none!important}
+</style></head><body class="locked">
+<div id="authScreen"><div id="authCard"><h1 style="color:#142a48">🔒 AUTO CHECK</h1><p id="authHint">Preparando acceso privado...</p><label>Usuario administrador</label><input id="authUser" autocomplete="username" value="AUTOCHECK" readonly aria-label="Usuario administrador fijo"><label>Contraseña</label><input id="authPass" type="password" autocomplete="current-password" placeholder="Contraseña segura"><label id="confirmLabel" style="display:none">Confirmar contraseña</label><input id="authConfirm" type="password" autocomplete="new-password" style="display:none" placeholder="Repetir contraseña"><button class="primary" id="authSubmit">Continuar</button><p id="authMessage" role="alert"></p><p class="muted">Tus datos se cifran en este dispositivo. Si perdés la contraseña y no tenés un respaldo, no podrás recuperar tus registros.</p></div></div><header><h1>🔧 AUTO CHECK</h1><small>Gestión de taller • Paraguay • Funciona sin internet después de instalar</small><div style="margin-top:10px;display:flex;align-items:center;gap:8px"><label id="languageLabel" for="languageSelect" style="margin:0;color:white">Idioma</label><select id="languageSelect" onchange="setLanguage(this.value)" style="width:auto;padding:7px"><option value="es">Español</option><option value="en">English</option></select></div></header>
+<nav id="tabs"></nav><main id="main"></main><div id="toast"></div><section id="printArea" style="display:none;position:fixed;inset:0;overflow:auto;background:#edf1f6;z-index:10;padding:12px"><div class="no-print" style="max-width:700px;margin:0 auto 12px"><button class="primary" id="printButton" onclick="printCurrentDocument()">🖨️ Imprimir / Guardar PDF</button> <button class="secondary" id="closeButton" onclick="closeDoc()">Cerrar</button><p id="printHelp" class="muted">En Android: elegí «Guardar como PDF» en la pantalla de impresión. Después abrí el PDF desde Archivos y compartilo por WhatsApp o correo. Para captura, usá los botones de tu teléfono.</p></div><article id="printDoc" style="max-width:700px;margin:auto;background:white;border-radius:10px;padding:24px;box-shadow:0 2px 12px #0002"></article></section>
+<script>
+
+const LANGUAGE_KEY='autocheck_language';
+let language=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'es';
+const translations={
+'Inicio':'Home','Clientes':'Customers','Inventario':'Inventory','Trabajos':'Jobs','Facturas':'Invoices',
+'Notas crédito':'Credit Notes','Gastos':'Expenses','Ajustes':'Settings','Vehículos':'Vehicles',
+'Proveedores':'Suppliers','Compras':'Purchases','Cobros':'Payments','Reportes':'Reports',
+'Resumen':'Overview','Alertas de inventario':'Inventory Alerts','Importante':'Important',
+'Nuevo cliente':'New Customer','Nombre / razón social':'Name / business name','RUC o cédula':'Tax ID / national ID',
+'Teléfono':'Phone','Dirección':'Address','Guardar cliente':'Save customer','Eliminar':'Delete',
+'Agregar repuesto o servicio':'Add part or service','Descripción':'Description','Tipo':'Type',
+'Repuesto':'Part','Servicio':'Service','Código':'Code','Costo en guaraníes':'Cost in guaraníes',
+'Precio de venta':'Sale price','Cantidad en stock':'Quantity in stock','Avisar si queda':'Low-stock threshold',
+'Guardar producto':'Save item','Nueva orden de trabajo':'New work order','Vehículo / motocicleta':'Vehicle / motorcycle',
+'Chapa / matrícula':'License plate','Fecha':'Date','Estado':'Status','Presupuesto ₲':'Estimate ₲',
+'Problema / reparación':'Problem / repair','Guardar trabajo':'Save job','Órdenes de trabajo':'Work orders',
+'Cambiar estado':'Change status','Nueva factura interna':'New internal invoice',
+'Comprobante de gestión interno, no factura electrónica legal.':'Internal business document, not an official electronic tax invoice.',
+'Cliente':'Customer','Consumidor final':'Walk-in customer','Repuesto o servicio':'Part or service',
+'Cantidad':'Quantity','Forma de pago':'Payment method','Efectivo':'Cash','Transferencia':'Bank transfer',
+'Tarjeta':'Card','Crédito':'Credit','Emitir comprobante interno':'Create internal invoice',
+'Comprobantes':'Documents','Ver / imprimir':'View / print','Ver / imprimir / PDF':'View / print / PDF',
+'Nueva nota de crédito interna':'New internal credit note',
+'Se vincula a un comprobante existente. No es una nota de crédito electrónica DNIT.':'Linked to an existing invoice. Not an official DNIT electronic credit note.',
+'Comprobante original':'Original invoice','Importe a acreditar ₲':'Credit amount ₲',
+'Motivo':'Reason','Guardar nota de crédito':'Save credit note','Notas de crédito':'Credit notes',
+'Nuevo gasto':'New expense','Concepto':'Description','Monto ₲':'Amount ₲',
+'Guardar gasto':'Save expense','Datos de la empresa':'Company details','Empresa':'Company',
+'Guardar ajustes':'Save settings','Copias de seguridad':'Backups',
+'Descargar copia de seguridad':'Download backup','Restaurar copia JSON':'Restore JSON backup',
+'Imprimir / Guardar PDF':'Print / Save PDF','Cerrar':'Close',
+'Iniciar sesión':'Log in','Crear administrador':'Create administrator',
+'Usuario administrador':'Administrator username','Contraseña':'Password',
+'Confirmar contraseña':'Confirm password','Pendiente':'Pending','En proceso':'In progress',
+'Terminado':'Completed','Entregado':'Delivered','Guardar':'Save','Número:':'Number:',
+'Detalle':'Details','Cant.':'Qty.','Precio':'Price','Importe':'Amount',
+'Forma de pago:':'Payment method:','Facturas internas':'Internal invoices',
+'Nota de crédito interna':'Internal credit note','Factura interna':'Internal invoice',
+'Nueva compra':'New purchase','Nueva venta':'New sale','Guardar compra':'Save purchase',
+'Guardar cobro':'Save payment','Nueva cuenta':'New account',
+'Stock':'Stock','Compras':'Purchases'
+};
+function translateText(text){
+ if(language!=='en')return text;
+ const trim=text.trim();
+ if(!trim)return text;
+ if(translations[trim])return text.replace(trim,translations[trim]);
+ for(const [es,en] of Object.entries(translations)){
+  if(trim.startsWith(es+' ('))return text.replace(es,en);
+ }
+ return text;
+}
+function translateElement(root){
+ if(language!=='en'||!root)return;
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+ let node;
+ while(node=walker.nextNode()){
+  if(['SCRIPT','STYLE','TEXTAREA','OPTION'].includes(node.parentElement?.tagName))continue;
+  node.nodeValue=translateText(node.nodeValue);
+ }
+ for(const el of root.querySelectorAll('input[placeholder],button[title]')){
+  if(el.placeholder)el.placeholder=translateText(el.placeholder);
+  if(el.title)el.title=translateText(el.title);
+ }
+}
+function setLanguage(next){
+ language=next==='en'?'en':'es';
+ localStorage.setItem(LANGUAGE_KEY,language);
+ document.documentElement.lang=language;
+ render();
+ updateLanguageControls();
+}
+function updateLanguageControls(){
+ const s=document.getElementById('languageSelect');
+ if(s)s.value=language;
+ document.getElementById('languageLabel').textContent=language==='en'?'Language':'Idioma';
+ const b=document.getElementById('printButton');
+ if(b)b.textContent=language==='en'?'🖨️ Print / Save PDF':'🖨️ Imprimir / Guardar PDF';
+ const close=document.getElementById('closeButton');
+ if(close)close.textContent=language==='en'?'Close':'Cerrar';
+ const help=document.getElementById('printHelp');
+ if(help)help.textContent=language==='en'?'On Android, select “Save as PDF” from the print screen, then share the PDF from Files.':'En Android, elegí «Guardar como PDF» en la pantalla de impresión. Después compartilo desde Archivos.';
+}
+
+"use strict";
+const KEY='autocheck_private_v1';
+const initial=()=>({clientes:[],productos:[],trabajos:[],facturas:[],notas:[],gastos:[],proveedores:[],vehiculos:[],compras:[],cobros:[],ajustes:{empresa:'AUTO CHECK',ruc:'',telefono:'',direccion:''}});
+let db=initial();
+let unlocked=false, currentKey=null, saveQueue=Promise.resolve();
+const AUTHKEY='autocheck_private_auth_v1';
+const encoder=new TextEncoder(), decoder=new TextDecoder();
+const b64=bytes=>btoa(String.fromCharCode(...bytes));
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+function authInfo(){try{return JSON.parse(localStorage.getItem(AUTHKEY))}catch(e){return null}}
+async function derive(pass,salt){
+ const material=await crypto.subtle.importKey('raw',encoder.encode(pass),'PBKDF2',false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptObject(obj,key){
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const bytes=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,encoder.encode(JSON.stringify(obj))));
+ return JSON.stringify({iv:b64(iv),data:b64(bytes)});
+}
+async function decryptObject(text,key){
+ const x=JSON.parse(text);
+ return JSON.parse(decoder.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(x.iv)},key,unb64(x.data))));
+}
+async function setupAuth(){
+ if(!globalThis.crypto || !crypto.subtle){$('authHint').textContent='Para usar los botones y el acceso seguro, abrí Auto Check desde una dirección HTTPS (no como archivo descargado).';$('authSubmit').disabled=true;return}
+ const existing=authInfo();
+ $('authHint').textContent=existing?'Ingresá para abrir tus registros.':'Primera vez: creá tu contraseña de administrador. El usuario AUTOCHECK es fijo.';
+ $('authSubmit').textContent=existing?'Iniciar sesión':'Crear administrador';
+ $('confirmLabel').style.display=existing?'none':'block';
+ $('authConfirm').style.display=existing?'none':'block';
+ $('authSubmit').onclick=async()=>{
+  const user='AUTOCHECK',pass=$('authPass').value;
+  $('authMessage').textContent='';
+  $('authSubmit').disabled=true;
+  try{
+   if(!user||!pass)throw Error('Ingresá usuario y contraseña.');
+   if(existing){
+    if(user!==existing.user)throw Error('Usuario o contraseña incorrectos.');
+    const key=await derive(pass,unb64(existing.salt));
+    await decryptObject(existing.check,key);
+    const saved=localStorage.getItem(KEY);
+    const loaded=saved?await decryptObject(saved,key):initial();
+    if(!loaded||!Array.isArray(loaded.clientes)||!Array.isArray(loaded.facturas))throw Error('Datos dañados.');
+    db={...initial(),...loaded};currentKey=key;
+   }else{
+    if(pass.length<12)throw Error('Usá una contraseña de al menos 12 caracteres.');
+    if(pass!==$('authConfirm').value)throw Error('Las contraseñas no coinciden.');
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const key=await derive(pass,salt);
+    const check=await encryptObject({ok:'AUTO_CHECK'},key);
+    const data=await encryptObject(initial(),key);
+    localStorage.setItem(KEY,data);
+    localStorage.setItem(AUTHKEY,JSON.stringify({user,salt:b64(salt),check}));
+    db=initial();currentKey=key;
+   }
+   unlocked=true;document.body.classList.remove('locked');$('authScreen').style.display='none';render();
+  }catch(err){$('authMessage').textContent=err.message||'No se pudo abrir.'}
+  finally{$('authSubmit').disabled=false}
+ };
+}
+
+const $=id=>document.getElementById(id);
+const money=n=>'₲ '+Math.round(Number(n)||0).toLocaleString('es-PY');
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>String(Date.now())+Math.random().toString(36).slice(2,7);
+const today=()=>new Date().toISOString().slice(0,10);
+function save(){
+ if(!unlocked||!currentKey)return false;
+ const snapshot=JSON.parse(JSON.stringify(db));
+ saveQueue=saveQueue.then(async()=>{localStorage.setItem(KEY,await encryptObject(snapshot,currentKey))})
+ .catch(err=>{alert('Error al guardar datos cifrados. Hacé un respaldo: '+err.message)});
+ return true;
+}
+function toast(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2400)}
+let tab='Inicio';
+const tabs=['Inicio','Clientes','Vehículos','Inventario','Proveedores','Compras','Trabajos','Facturas','Cobros','Notas crédito','Gastos','Reportes','Ajustes'];
+function switchTab(t){tab=t;render();window.scrollTo(0,0)}
+function field(n,label,type='text',required=false,extra=''){return `<div><label>${label}</label><input name="${n}" type="${type}" ${required?'required':''} ${extra}></div>`}
+function sel(n,label,options){return `<div><label>${label}</label><select name="${n}">${options.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select></div>`}
+function opts(arr,label){return arr.map(x=>[x.id,label(x)])}
+function formData(form){return Object.fromEntries(new FormData(form).entries())}
+function list(rows,fmt){return rows.length?rows.slice().reverse().map(fmt).join(''):'<p class="muted">Todavía no hay registros.</p>'}
+function render(){ $('tabs').innerHTML=tabs.map(t=>`<button class="${t===tab?'active':''}" data-tab="${t}">${t}</button>`).join('');$('main').innerHTML=views[tab]();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));bind();translateElement($('tabs'));translateElement($('main'));updateLanguageControls()}
+function totalInvoice(f){return Number(f.cantidad)*Number(f.precio)}
+const views={
+'Inicio':()=>{const ventas=db.facturas.reduce((s,f)=>s+totalInvoice(f),0);const notas=db.notas.reduce((s,n)=>s+Number(n.monto),0);return `<section class="card"><h2>Resumen</h2><div class="grid"><div class="stat">Clientes<strong>${db.clientes.length}</strong></div><div class="stat">Productos<strong>${db.productos.length}</strong></div><div class="stat">Ventas internas<strong>${money(ventas)}</strong></div><div class="stat">Ventas netas estimadas<strong>${money(ventas-notas)}</strong></div></div></section><section class="card"><h2>Alertas de inventario</h2>${list(db.productos.filter(p=>Number(p.stock)<=Number(p.minimo)),p=>`<div class="item"><b>${esc(p.nombre)}</b> · Stock: ${esc(p.stock)} <span class="tag">Bajo</span></div>`)}</section><section class="card"><h2>Importante</h2><p>Este sistema guarda los datos <b>cifrados en este navegador de este teléfono</b>. Hacé copias de seguridad con frecuencia desde Ajustes. No genera facturas electrónicas oficiales DNIT/SIFEN.</p></section>`},
+ 'Vehículos':()=>`<section class="card"><h2>Registrar vehículo</h2><form id="vehiculo"><div class="fields">${sel('cliente','Propietario',[['','Sin propietario'],...opts(db.clientes,c=>c.nombre)])}${field('marca','Marca','text',true)}${field('modelo','Modelo','text',true)}${field('anio','Año','number',false,'min="1950" max="2100"')}${field('chapa','Chapa / matrícula')}${field('vin','VIN / chasis')}${field('km','Kilometraje','number',false,'min="0"')}${field('notas','Observaciones')}</div><button class="primary">Guardar vehículo</button></form></section><section class="card"><h2>Historial de vehículos</h2>${list(db.vehiculos,v=>`<div class="item"><b>${esc(v.marca)} ${esc(v.modelo)}</b> · ${esc(v.chapa||'Sin chapa')}<div class="muted">Propietario: ${esc(db.clientes.find(c=>c.id===v.cliente)?.nombre||'—')} · VIN: ${esc(v.vin||'—')} · KM: ${esc(v.km||'—')}</div><div class="muted">Órdenes con esta chapa: ${db.trabajos.filter(t=>t.matricula&&t.matricula.toLowerCase()===v.chapa?.toLowerCase()).length}</div><button class="secondary danger" data-delete="vehiculos" data-id="${v.id}">Eliminar</button></div>`)}</section>`,
+ 'Proveedores':()=>`<section class="card"><h2>Nuevo proveedor</h2><form id="proveedor"><div class="fields">${field('nombre','Proveedor','text',true)}${field('ruc','RUC')}${field('telefono','Teléfono','tel')}${field('direccion','Dirección')}</div><button class="primary">Guardar proveedor</button></form></section><section class="card"><h2>Proveedores</h2>${list(db.proveedores,v=>`<div class="item"><b>${esc(v.nombre)}</b><div class="muted">RUC: ${esc(v.ruc||'—')} · ${esc(v.telefono||'')}</div><button class="secondary danger" data-delete="proveedores" data-id="${v.id}">Eliminar</button></div>`)}</section>`,
+ 'Compras':()=>`<section class="card"><h2>Registrar compra de repuestos</h2><p class="muted">Al guardar una compra se aumenta automáticamente el stock.</p><form id="compra"><div class="fields">${sel('proveedor','Proveedor',[['','Sin seleccionar'],...opts(db.proveedores,v=>v.nombre)])}${sel('producto','Repuesto',opts(db.productos.filter(p=>p.tipo==='Repuesto'),p=>p.nombre))}${field('cantidad','Cantidad','number',true,'min="1" step="1"')}${field('costo','Costo unitario ₲','number',true,'min="0" step="1"')}${field('fecha','Fecha','date',true,`value="${today()}"`)}${field('referencia','Número de documento proveedor')}</div><button class="primary">Registrar compra</button></form></section><section class="card"><h2>Compras</h2>${list(db.compras,c=>`<div class="item"><b>${esc(db.productos.find(p=>p.id===c.producto)?.nombre||'Producto eliminado')}</b> · ${esc(c.cantidad)} unidades<div class="muted">${esc(c.fecha)} · ${money(Number(c.cantidad)*Number(c.costo))} · ${esc(db.proveedores.find(v=>v.id===c.proveedor)?.nombre||'—')}</div></div>`)}</section>`,
+ 'Cobros':()=>`<section class="card"><h2>Registrar cobro</h2><p class="muted">Registrá los pagos recibidos. Para comprobantes a crédito, controlá el saldo pendiente.</p><form id="cobro">${sel('factura','Comprobante',db.facturas.map(f=>[f.id,'N.º '+f.numero+' · '+money(totalInvoice(f))]))}<div class="fields">${field('monto','Monto recibido ₲','number',true,'min="1" step="1"')}${field('fecha','Fecha','date',true,`value="${today()}"`)}${sel('metodo','Medio de pago',[['Efectivo','Efectivo'],['Transferencia','Transferencia'],['Tarjeta','Tarjeta']])}</div><button class="primary">Guardar cobro</button></form></section><section class="card"><h2>Cobros</h2>${list(db.cobros,c=>`<div class="item"><b>${money(c.monto)}</b> · ${esc(c.fecha)}<div class="muted">Factura ${esc(db.facturas.find(f=>f.id===c.factura)?.numero||'—')} · ${esc(c.metodo)}</div></div>`)}</section>`,
+ 'Reportes':()=>{const ventas=db.facturas.reduce((s,f)=>s+totalInvoice(f),0),creditos=db.notas.reduce((s,n)=>s+Number(n.monto),0),gastos=db.gastos.reduce((s,g)=>s+Number(g.monto),0),compras=db.compras.reduce((s,c)=>s+Number(c.cantidad)*Number(c.costo),0),cobros=db.cobros.reduce((s,c)=>s+Number(c.monto),0),stock=db.productos.filter(p=>p.tipo==='Repuesto').reduce((s,p)=>s+Number(p.stock)*Number(p.costo),0);return `<section class="card"><h2>Reportes de gestión</h2><div class="grid"><div class="stat">Ventas internas<strong>${money(ventas)}</strong></div><div class="stat">Notas de crédito<strong>${money(creditos)}</strong></div><div class="stat">Cobros registrados<strong>${money(cobros)}</strong></div><div class="stat">Gastos<strong>${money(gastos)}</strong></div><div class="stat">Compras<strong>${money(compras)}</strong></div><div class="stat">Valor stock (costo)<strong>${money(stock)}</strong></div></div><p class="muted">Estas cifras son orientativas, no constituyen contabilidad, balance fiscal ni cálculo oficial de IVA. Los cobros no se deducen automáticamente de las ventas.</p><button class="primary" id="csvVentas">Exportar ventas CSV</button><button class="secondary" id="csvStock">Exportar stock CSV</button></section>`},
+ 'Clientes':()=>`<section class="card"><h2>Nuevo cliente</h2><form id="cliente"><div class="fields">${field('nombre','Nombre / razón social','text',true)}${field('ruc','RUC o cédula')}${field('telefono','Teléfono','tel')}${field('direccion','Dirección')}</div><button class="primary">Guardar cliente</button></form></section><section class="card"><h2>Clientes (${db.clientes.length})</h2>${list(db.clientes,c=>`<div class="item"><b>${esc(c.nombre)}</b><div class="muted">RUC/CI: ${esc(c.ruc||'—')} · ${esc(c.telefono||'')}</div><button class="secondary danger" data-delete="clientes" data-id="${c.id}">Eliminar</button></div>`)}</section>`,
+'Inventario':()=>`<section class="card"><h2>Agregar repuesto o servicio</h2><form id="producto"><div class="fields">${field('nombre','Descripción','text',true)}${sel('tipo','Tipo',[['Repuesto','Repuesto'],['Servicio','Servicio']])}${field('codigo','Código')}${field('costo','Costo en guaraníes','number',false,'min="0" step="1" value="0"')}${field('precio','Precio de venta','number',true,'min="0" step="1"')}${field('stock','Cantidad en stock','number',false,'min="0" step="1" value="0"')}${field('minimo','Avisar si queda','number',false,'min="0" step="1" value="2"')}</div><button class="primary">Guardar producto</button></form></section><section class="card"><h2>Inventario (${db.productos.length})</h2>${list(db.productos,p=>`<div class="item"><b>${esc(p.nombre)}</b> <span class="tag">${esc(p.tipo)}</span><div class="muted">Código: ${esc(p.codigo||'—')} · Precio: ${money(p.precio)} · Stock: ${esc(p.stock)}</div><button class="secondary" data-stock="${p.id}" data-delta="1">+ Stock</button><button class="secondary" data-stock="${p.id}" data-delta="-1">− Stock</button><button class="secondary danger" data-delete="productos" data-id="${p.id}">Eliminar</button></div>`)}</section>`,
+'Trabajos':()=>`<section class="card"><h2>Nueva orden de trabajo</h2><form id="trabajo"><div class="fields">${sel('cliente','Cliente',[['','Sin seleccionar'],...opts(db.clientes,c=>c.nombre)])}${field('vehiculo','Vehículo / motocicleta','text',true)}${field('matricula','Chapa / matrícula')}${field('fecha','Fecha','date',true,`value="${today()}"`)}${sel('estado','Estado',[['Pendiente','Pendiente'],['En proceso','En proceso'],['Terminado','Terminado'],['Entregado','Entregado']])}${field('presupuesto','Presupuesto ₲','number',false,'min="0" value="0"')}</div><label>Problema / reparación</label><textarea name="descripcion" required></textarea><button class="primary">Guardar trabajo</button></form></section><section class="card"><h2>Órdenes de trabajo</h2>${list(db.trabajos,w=>`<div class="item"><b>${esc(w.vehiculo)}</b> · ${esc(w.fecha)} <span class="tag">${esc(w.estado)}</span><div>${esc(w.descripcion)}</div><div class="muted">Cliente: ${esc(db.clientes.find(c=>c.id===w.cliente)?.nombre||'—')} · Presupuesto: ${money(w.presupuesto)}</div><button class="secondary" data-work="${w.id}">Cambiar estado</button><button class="secondary danger" data-delete="trabajos" data-id="${w.id}">Eliminar</button></div>`)}</section>`,
+'Facturas':()=>`<section class="card"><h2>Nueva factura interna</h2><p class="muted">Comprobante de gestión interno, no factura electrónica legal.</p><form id="factura"><div class="fields">${sel('cliente','Cliente',[['','Consumidor final'],...opts(db.clientes,c=>c.nombre+' · '+(c.ruc||'sin RUC'))])}${sel('producto','Repuesto o servicio',opts(db.productos,p=>p.nombre+' · '+money(p.precio)+' · stock '+p.stock))}${field('cantidad','Cantidad','number',true,'min="1" step="1" value="1"')}${sel('pago','Forma de pago',[['Efectivo','Efectivo'],['Transferencia','Transferencia'],['Tarjeta','Tarjeta'],['Crédito','Crédito']])}${field('fecha','Fecha','date',true,`value="${today()}"`)}</div><button class="primary" ${!db.productos.length?'disabled':''}>Emitir comprobante interno</button></form></section><section class="card"><h2>Comprobantes</h2>${list(db.facturas,f=>{const c=db.clientes.find(x=>x.id===f.cliente),p=db.productos.find(x=>x.id===f.producto);return `<div class="item"><b>N.º ${esc(f.numero)}</b> · ${esc(f.fecha)}<div>${esc(c?.nombre||'Consumidor final')} · ${esc(f.descripcion||p?.nombre||'Producto')}</div><div><b>${money(totalInvoice(f))}</b> · ${esc(f.pago)}</div><button class="secondary" data-print="${f.id}">Ver / imprimir</button></div>`})}</section>`,
+'Notas crédito':()=>`<section class="card"><h2>Nueva nota de crédito interna</h2><p class="muted">Se vincula a un comprobante existente. No es una nota de crédito electrónica DNIT.</p><form id="nota">${sel('factura','Comprobante original',db.facturas.map(f=>[f.id,'N.º '+f.numero+' · '+money(totalInvoice(f))]))}${field('monto','Importe a acreditar ₲','number',true,'min="1" step="1"')}${field('motivo','Motivo','text',true)}<button class="primary" ${!db.facturas.length?'disabled':''}>Guardar nota de crédito</button></form></section><section class="card"><h2>Notas de crédito</h2>${list(db.notas,n=>`<div class="item"><b>${money(n.monto)}</b> · ${esc(n.fecha)}<div>${esc(n.motivo)} · Factura ${esc(db.facturas.find(f=>f.id===n.factura)?.numero||'—')}</div><button class="secondary" data-credit-print="${n.id}">Ver / imprimir / PDF</button></div>`)}</section>`,
+'Gastos':()=>`<section class="card"><h2>Nuevo gasto</h2><form id="gasto">${field('concepto','Concepto','text',true)}<div class="fields">${field('monto','Monto ₲','number',true,'min="0" step="1"')}${field('fecha','Fecha','date',true,`value="${today()}"`)}</div><button class="primary">Guardar gasto</button></form></section><section class="card"><h2>Gastos · Total ${money(db.gastos.reduce((s,g)=>s+Number(g.monto),0))}</h2>${list(db.gastos,g=>`<div class="item"><b>${esc(g.concepto)}</b> · ${money(g.monto)}<div class="muted">${esc(g.fecha)}</div><button class="secondary danger" data-delete="gastos" data-id="${g.id}">Eliminar</button></div>`)}</section>`,
+'Ajustes':()=>`<section class="card"><h2>Datos de la empresa</h2><form id="ajustes">${field('empresa','Empresa','text',true,`value="${esc(db.ajustes.empresa)}"`)}${field('ruc','RUC', 'text',false,`value="${esc(db.ajustes.ruc)}"`)}${field('telefono','Teléfono','text',false,`value="${esc(db.ajustes.telefono)}"`)}${field('direccion','Dirección','text',false,`value="${esc(db.ajustes.direccion)}"`)}<button class="primary">Guardar ajustes</button></form></section><section class="card"><h2>Copias de seguridad</h2><p>Exportá un respaldo JSON cifrado y guardalo fuera del teléfono. Para restaurarlo necesitás la misma contraseña. No la pierdas. Si borrás los datos del navegador, podés perder toda la información.</p><button class="primary" id="export">Descargar copia de seguridad</button><label>Restaurar copia JSON</label><input type="file" id="import" accept=".json,application/json"><p class="muted">La restauración reemplaza los datos actuales. Los respaldos de versiones anteriores pueden no estar cifrados.</p></section>`
+};
+function bind(){
+for(const type of ['cliente','producto','trabajo','gasto','proveedor','vehiculo','ajustes']){const f=$(type);if(f)f.onsubmit=e=>{e.preventDefault();let d=formData(f);if(type==='ajustes'){db.ajustes=d}else{d.id=uid();db[type==='cliente'?'clientes':type==='producto'?'productos':type==='trabajo'?'trabajos':type==='proveedor'?'proveedores':type==='vehiculo'?'vehiculos':'gastos'].push(d)}if(save()){toast('Guardado');render()}}}
+const compra=$('compra');if(compra)compra.onsubmit=e=>{e.preventDefault();const d=formData(compra),p=db.productos.find(x=>x.id===d.producto);if(!p||p.tipo!=='Repuesto')return alert('Elegí un repuesto válido');if(Number(d.cantidad)<=0||Number(d.costo)<0)return alert('Verificá los importes');d.id=uid();db.compras.push(d);p.stock=Number(p.stock)+Number(d.cantidad);p.costo=d.costo;save();toast('Compra y stock guardados');render()};
+const cobro=$('cobro');if(cobro)cobro.onsubmit=e=>{e.preventDefault();const d=formData(cobro),f=db.facturas.find(x=>x.id===d.factura);if(!f)return alert('Seleccioná una factura');const paid=db.cobros.filter(x=>x.factura===f.id).reduce((s,x)=>s+Number(x.monto),0),credits=db.notas.filter(x=>x.factura===f.id).reduce((s,x)=>s+Number(x.monto),0);if(Number(d.monto)<=0||Number(d.monto)>totalInvoice(f)-paid-credits)return alert('El cobro supera el saldo disponible');d.id=uid();db.cobros.push(d);save();toast('Cobro registrado');render()};
+function csvDownload(filename,rows){const data=rows.map(r=>r.map(x=>'"'+String(x??'').replaceAll('"','""')+'"').join(';')).join('\r\n');const blob=new Blob(['\ufeff'+data],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+if($('csvVentas'))$('csvVentas').onclick=()=>csvDownload('ventas-autocheck.csv',[['Número','Fecha','Cliente','Detalle','Cantidad','Precio','Total'],...db.facturas.map(f=>[f.numero,f.fecha,db.clientes.find(c=>c.id===f.cliente)?.nombre||'Consumidor final',f.descripcion,f.cantidad,f.precio,totalInvoice(f)])]);
+if($('csvStock'))$('csvStock').onclick=()=>csvDownload('inventario-autocheck.csv',[['Código','Descripción','Tipo','Stock','Costo','Precio'],...db.productos.map(p=>[p.codigo,p.nombre,p.tipo,p.stock,p.costo,p.precio])]);
+const inv=$('factura');if(inv)inv.onsubmit=e=>{e.preventDefault();const d=formData(inv);const p=db.productos.find(x=>x.id===d.producto);if(!p)return alert('Seleccioná un producto');if(p.tipo==='Repuesto'&&Number(p.stock)<Number(d.cantidad))return alert('Stock insuficiente');if(p.tipo==='Repuesto')p.stock=Number(p.stock)-Number(d.cantidad);d.id=uid();d.numero=String(db.facturas.length+1).padStart(6,'0');d.precio=p.precio;d.descripcion=p.nombre;db.facturas.push(d);if(save()){toast('Comprobante creado');render()}};
+const nota=$('nota');if(nota)nota.onsubmit=e=>{e.preventDefault();const d=formData(nota);const f=db.facturas.find(x=>x.id===d.factura);if(!f)return alert('Seleccioná comprobante');const used=db.notas.filter(n=>n.factura===f.id).reduce((s,n)=>s+Number(n.monto),0);if(Number(d.monto)<=0||Number(d.monto)>totalInvoice(f)-used)return alert('Importe mayor al saldo disponible');d.id=uid();d.fecha=today();db.notas.push(d);save();toast('Nota guardada');render()};
+document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{if(!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.'))return;db[b.dataset.delete]=db[b.dataset.delete].filter(x=>x.id!==b.dataset.id);save();render()});
+document.querySelectorAll('[data-stock]').forEach(b=>b.onclick=()=>{const p=db.productos.find(x=>x.id===b.dataset.stock);if(p){p.stock=Math.max(0,Number(p.stock)+Number(b.dataset.delta));save();render()}});
+document.querySelectorAll('[data-work]').forEach(b=>b.onclick=()=>{const w=db.trabajos.find(x=>x.id===b.dataset.work);if(w){const states=['Pendiente','En proceso','Terminado','Entregado'];w.estado=states[(states.indexOf(w.estado)+1)%states.length];save();render()}});
+document.querySelectorAll('[data-print]').forEach(b=>b.onclick=()=>showDocument('factura',b.dataset.print));
+document.querySelectorAll('[data-credit-print]').forEach(b=>b.onclick=()=>showDocument('nota',b.dataset.creditPrint));
+if($('export'))$('export').onclick=async()=>{const a=document.createElement('a');const blob=new Blob([JSON.stringify({format:'AutoCheckEncryptedBackupV1',payload:await encryptObject(db,currentKey)},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);a.href=url;a.download='autocheck-respaldo-cifrado-'+today()+'.json';if(window.AutoCheckAndroid){const raw=new TextEncoder().encode(JSON.stringify({format:'AutoCheckEncryptedBackupV1',payload:await encryptObject(db,currentKey)},null,2));window.AutoCheckAndroid.saveBackup(btoa(Array.from({length:Math.ceil(raw.length/8192)},(_,i)=>String.fromCharCode(...raw.slice(i*8192,(i+1)*8192))).join('')));URL.revokeObjectURL(url)}else{a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}};
+if($('import'))$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{let d=JSON.parse(await f.text());if(d.format==='AutoCheckEncryptedBackupV1')d=await decryptObject(d.payload,currentKey);if(!Array.isArray(d.clientes)||!Array.isArray(d.productos)||!Array.isArray(d.facturas))throw Error('Formato incorrecto');if(!confirm('¿Reemplazar TODOS los datos actuales por la copia?'))return;db={...initial(),...d};save();render();toast('Copia restaurada')}catch(err){alert('No se pudo importar: '+err.message)}};
+}
+function printCurrentDocument(){
+ const doc=document.getElementById('printDoc');
+ if(!doc || !doc.innerHTML.trim()){alert('Primero abrí un comprobante.');return}
+ if(window.AutoCheckAndroid && typeof window.AutoCheckAndroid.printDocument==='function'){
+   window.AutoCheckAndroid.printDocument(doc.innerHTML);
+ }else{
+   window.print();
+ }
+}
+function closeDoc(){$('printArea').style.display='none';document.body.style.overflow='';}
+function showDocument(tipo,id){
+ const f=tipo==='factura'?db.facturas.find(x=>x.id===id):null;
+ const n=tipo==='nota'?db.notas.find(x=>x.id===id):null;
+ const original=n?db.facturas.find(x=>x.id===n.factura):f;
+ if(!original)return alert('No se encontró el comprobante original');
+ const c=db.clientes.find(x=>x.id===original.cliente);
+ const num=tipo==='factura'?f.numero:'NC-'+String(db.notas.findIndex(x=>x.id===id)+1).padStart(6,'0');
+ const date=tipo==='factura'?f.fecha:n.fecha;
+ const total=tipo==='factura'?totalInvoice(f):Number(n.monto);
+ const name=tipo==='factura'?'COMPROBANTE INTERNO':'NOTA DE CRÉDITO INTERNA';
+ const detail=tipo==='factura'?`<tr><td>${esc(f.descripcion)}</td><td style="text-align:center">${esc(f.cantidad)}</td><td style="text-align:right">${money(f.precio)}</td><td style="text-align:right">${money(total)}</td></tr>`:`<tr><td colspan="3">Crédito por: ${esc(n.motivo)}<p style="font-size:12px">Relacionado con comprobante N.º ${esc(original.numero)}</p></td><td style="text-align:right">${money(total)}</td></tr>`;
+ $('printDoc').innerHTML=`<div style="font-family:Arial,sans-serif;color:#172238;line-height:1.5"><h1 style="margin:0">${esc(db.ajustes.empresa||'AUTO CHECK')}</h1><div>RUC: ${esc(db.ajustes.ruc||'—')}</div><div>${esc(db.ajustes.direccion||'')}</div><div>${esc(db.ajustes.telefono||'')}</div><hr><h2>${name}</h2><div><b>Número:</b> ${esc(num)} &nbsp; <b>Fecha:</b> ${esc(date)}</div><div><b>Cliente:</b> ${esc(c?.nombre||'Consumidor final')}</div><div><b>RUC / CI:</b> ${esc(c?.ruc||'—')}</div><div><b>Dirección:</b> ${esc(c?.direccion||'—')}</div><table style="border-collapse:collapse;width:100%;margin:22px 0;font-size:13px"><thead><tr style="border-bottom:2px solid #aaa"><th style="text-align:left">Detalle</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Importe</th></tr></thead><tbody>${detail}</tbody></table><hr><h2 style="text-align:right">TOTAL: ${money(total)}</h2>${tipo==='factura'?`<p>Forma de pago: ${esc(f.pago)}</p>`:''}<hr><p style="font-size:12px"><b>DOCUMENTO INTERNO. NO ES FACTURA NI NOTA DE CRÉDITO ELECTRÓNICA AUTORIZADA POR DNIT/SIFEN.</b></p></div>`;
+ translateElement($('printDoc'));updateLanguageControls();$('printArea').style.display='block';document.body.style.overflow='hidden';$('printArea').scrollTop=0;
+}
+setupAuth().then(()=>{translateElement($('authScreen'));updateLanguageControls()});
+</script><script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+</script></body></html>

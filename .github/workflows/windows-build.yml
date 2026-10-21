@@ -1,0 +1,29 @@
+name: Build Auto Check Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows-build.yml'
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build Windows installer and portable EXE
+        run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AutoCheck-Windows
+          path: windows/dist/*.exe
